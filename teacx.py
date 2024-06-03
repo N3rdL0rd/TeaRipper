@@ -1,5 +1,9 @@
 """
 Utility for Tea for God's custom encoding for XML files, .cx - version 2 (based on official docs)
+
+Written by N3rdL0rd. This is a work in progress and is not yet complete. This version is from 6/2/2024.
+
+Thank you to void room for the official documentation and the huge help in understanding the format.
 """
 import json
 import argparse
