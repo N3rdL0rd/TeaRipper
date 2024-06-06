@@ -1,38 +1,27 @@
 # TeaRipper
 
-Utilities to dump and extract assets from Tea for God
+Utilities for working with Tea for God assets, configuration files, and a modding framework
 
 ## Included Tools
 
 - `teacx.py`: Utilities for working with `.cx` files, which are used to encode XML data for better load times
+- `tearipper.py`: A multi-tool of sorts for extracting and modifying assets from Tea for God, as well as packaging and unpackaging mods
 
 ## Usage
 
-### `teacx.py`
+See [docs/usage.md](docs/usage.md) for detailed usage instructions, and [docs/modding.md](docs/modding.md) for information on mods.
 
-```plaintext
-usage: teacx.py [-h] [-o OUTPUT] [-j] [-d] [-D] [-c] [-t] [-e] file
+## Prerequisites
 
-Parse, decode, and dump Tea for God .cx files
-
-positional arguments:
-  file                  path to the .cx file
-
-options:
-  -h, --help            show this help message and exit
-  -o OUTPUT, --output OUTPUT
-                        path to the output file (default: original filename with .xml extension)
-  -j, --json            output as JSON (closer to outputted tokens) instead of XML
-  -d, --debug           print debug information
-  -D, --dump            dump all file data without the header to a file (for debugging)
-  -c, --chunks          output chunk data in a text file for comparison and research
-  -t, --tokens          output untransformed tokens in JSON
-  -e, --die-on-error    exit on any parsing error
-```
+- Python 3.8 or later
 
 ## Installation
 
-So far, this project has no dependencies outside of the Python standard library. To install, simply clone the repository and run the script you need.
+From source:
+
+1. Clone the repository
+2. Run `pip install -r requirements.txt` to install the required dependencies
+3. Run the tools as needed
 
 ## License
 
