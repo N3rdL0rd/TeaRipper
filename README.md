@@ -11,6 +11,10 @@ Utilities for working with Tea for God assets, configuration files, and a moddin
 
 See [docs/usage.md](docs/usage.md) for detailed usage instructions, and [docs/modding.md](docs/modding.md) for information on mods.
 
+## Get Mods
+
+Currently, there is no central repository for mods. However, you can find mods on the [Tea for God Discord](https://discord.gg/FFwyf4n).
+
 ## Installation
 
 Prebuilt:
