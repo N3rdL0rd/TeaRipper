@@ -1,7 +1,7 @@
 """
 Utility for Tea for God's custom encoding for XML files, .cx - version 2 (based on official docs)
 
-Written by N3rdL0rd. This is a work in progress and is not yet complete. This version is from 6/2/2024.
+Written by N3rdL0rd. This version is from 6/6/2024.
 
 Thank you to void room for the official documentation and the huge help in understanding the format.
 """
@@ -9,15 +9,15 @@ import json
 import argparse
 import io
 import os
-import hashlib
-import warnings
+from lxml import etree
+from typing import List
 
 # region Classes
-class CXSerialisable:
+class Serialisable:
     def __init__(self):
-        raise NotImplementedError("CXSerialisable is an abstract class and should not be instantiated.")
-    
-    def deserialise(self, f) -> 'CXSerialisable':
+        raise NotImplementedError("Serialisable is an abstract class and should not be instantiated.")
+
+    def deserialise(self, f) -> 'Serialisable':
         raise NotImplementedError("deserialise is not implemented for this class.")
     
     def serialise(self) -> bytes:
@@ -37,6 +37,13 @@ class CXSerialisable:
     
     def __lt__(self, other) -> bool:
         return self.value < other.value
+
+class CXSerialisable(Serialisable):
+    def __init__(self):
+        raise NotImplementedError("CXSerialisable is an abstract class and should not be instantiated.")
+    
+    def deserialise(self, f) -> 'CXSerialisable':
+        raise NotImplementedError("deserialise is not implemented for this class.")
 
 class CXInt(CXSerialisable):
     def __init__(self):
@@ -60,6 +67,7 @@ class CXInt(CXSerialisable):
     
     def serialise(self) -> bytes:
         return self.value.to_bytes(self.length, self.byteorder, signed=self.signed)
+
 
 class CXBool(CXSerialisable):
     def __init__(self):
@@ -120,6 +128,21 @@ class CXAttribute(CXSerialisable):
     def serialise(self) -> bytes:
         return b"".join([self.name.serialise(), self.value.serialise()])
 
+    def __repr__(self) -> str:
+        return f"{self.name.value}={self.value.value}"
+    
+    def __str__(self) -> str:
+        return self.__repr__()
+    
+    def __eq__(self, other) -> bool:
+        return self.name == other.name and self.value == other.value
+    
+    def __ne__(self, other) -> bool:
+        return not self == other
+    
+    def __lt__(self, other) -> bool:
+        raise NotImplementedError("Comparison is not implemented for CXAttribute")
+
 class CXNodeType(CXSerialisable):
     def __init__(self):
         self.human_readable = {
@@ -168,6 +191,7 @@ class CXNode(CXSerialisable):
         return self
 
     def serialise(self) -> bytes:
+        print(self.attributes)
         self.attribute_count.value = len(self.attributes)
         self.child_count.value = len(self.children)
         return b"".join([
@@ -183,26 +207,25 @@ class CXNode(CXSerialisable):
     def __repr__(self) -> str:
         return f"<CXNode {self.content.value} {str(self.attributes)}>"
 
-class CXRawData(CXSerialisable):
+class RawData(Serialisable):
     def __init__(self, length):
         self.data = b""
         self.length = length
     
-    def deserialise(self, f) -> 'CXRawData':
+    def deserialise(self, f) -> 'RawData':
         self.data = f.read(self.length)
         return self
     
     def serialise(self) -> bytes:
         return self.data
 
-class CXSerialisableResourceHeader(CXSerialisable):
-    # this class exists primarily for the sake of preserving the structure of the file - but it does nothing until we can figure out how to parse this
-    # the data is most likely an md5 hash of the xml source file, but the definition is usually 0x00 * 16, so it's not clear what it's for
+class SerialisableResourceHeader(Serialisable):
+    # this class exists primarily for the sake of preserving the structure of the file - even with the digest being implemented, it's still mostly a black box
     def __init__(self):
-        self.digested_source = CXRawData(16)
-        self.digested_definition = CXRawData(16)
+        self.digested_source = RawData(16)
+        self.digested_definition = RawData(16)
     
-    def deserialise(self, f) -> 'CXSerialisableResourceHeader':
+    def deserialise(self, f) -> 'SerialisableResourceHeader':
         self.digested_source.deserialise(f)
         self.digested_definition.deserialise(f)
         return self
@@ -210,19 +233,31 @@ class CXSerialisableResourceHeader(CXSerialisable):
     def serialise(self) -> bytes:
         return b"".join([self.digested_source.serialise(), self.digested_definition.serialise()])
     
-    def generate_from(self, file_path: str) -> 'CXSerialisableResourceHeader':
-        warnings.warn("This function is not yet correctly implemented and *will* not work to generate matching headers.")
-        with open(file_path, "rb") as f:
-            data = f.read()
-            digested_source = hashlib.md5(data).digest()
-            self.digested_source.data = digested_source
-            self.digested_definition.data = b"\x00" * 16
+    def digest(self, string: str, length: int=16) -> bytes:
+        c_length = length
+        value = [0] * c_length
+        index = 0
+        read_already = 0
+        prev = 13
+        for one in string.encode():
+            if read_already < c_length:
+                value[index] = (value[index] + (one - 83) + (prev & read_already)) % 256
+            prev = one
+            one += 26
+            index = (index + 1) % c_length
+            read_already += 1
+        return bytes(value)
+
+    def generate_from(self, data: str) -> 'SerialisableResourceHeader':
+        self.digested_source.data = self.digest(data)
+        self.digested_definition.data = b"\x00" * 16 # TODO: figure out how to generate this. for now, 0x00 it is.
         return self
 
 class CXHeader(CXSerialisable):
     def __init__(self):
         self.cx_version = CXInt()
-        self.serialisable_resource_header = CXSerialisableResourceHeader()
+        self.cx_version.length = 2
+        self.serialisable_resource_header = SerialisableResourceHeader()
         self.original_file_path = CXString()
         self.build_number = CXInt()
         self.header_text = CXString()
@@ -244,7 +279,20 @@ class CXHeader(CXSerialisable):
             self.header_text.serialise()
         ])
 
-class CXFile(CXSerialisable):
+class SerialisableFile(Serialisable):
+    def __init__(self):
+        self.header = SerialisableResourceHeader()
+        self.data = b""
+    
+    def deserialise(self, f) -> 'SerialisableFile':
+        self.header.deserialise(f)
+        self.data = f.read()
+        return self
+
+    def serialise(self) -> bytes:
+        return b"".join([self.header.serialise(), self.data])
+
+class CXFile(CXSerialisable, SerialisableFile):
     def __init__(self):
         self.header = CXHeader()
         self.root_node = CXNode()
@@ -257,6 +305,21 @@ class CXFile(CXSerialisable):
     def serialise(self) -> bytes:
         return b"".join([self.header.serialise(), self.root_node.serialise()])
 
+    def __repr__(self) -> str:
+        return f"<CXFile {self.header.original_file_path.value}>"
+    
+    def __str__(self) -> str:
+        return self.__repr__()
+    
+    def __eq__(self, other) -> bool:
+        return self.header.serialisable_resource_header == other.header.serialisable_resource_header and self.root_node == other.root_node
+    
+    def __ne__(self, other) -> bool:
+        return not self == other
+    
+    def __lt__(self, other) -> bool:
+        raise NotImplementedError("Comparison is not implemented for CXFile")
+
 # region Helpers
 def read_cx(f) -> CXFile:
     return CXFile().deserialise(f)
@@ -267,6 +330,24 @@ def read_cx_path(file_path: str) -> CXFile:
     
 def read_cx_bytes(data: bytes) -> CXFile:
     return read_cx(io.BytesIO(data))
+
+# HACK: only way to get around lxml's inability to parse attributes with dots in the name
+def encode_tagname(tagname: str) -> str:
+    return tagname.replace(".", "thisisadotstupidxmlparser")
+
+def decode_tagname(tagname: str) -> str:
+    return tagname.replace("thisisadotstupidxmlparser", ".")
+
+def replace_last(source_string: str, replace_what: str, replace_with: str) -> str:
+    head, _sep, tail = source_string.rpartition(replace_what)
+    return head + replace_with + tail
+
+def strip_leading_to_gamedir(path: str) -> str:
+    # game paths aren't always consistent, so we need to make sure the following is removed:
+    # - leading dots and slashes
+    # - leading "latest" or "latest/" (from my development environment, probably doesn't matter for anyone else, but it's just QoL)
+    # - for compatibility's sake, also replace the last slash with a backslash (like what's generated from the game)    
+    return replace_last(path.removeprefix("./").removeprefix("../").removeprefix("latest/").removeprefix("latest").replace("\\", "/"), "/", "\\")
 
 # region JSON deserialisation
 def attr_to_json(attr: CXAttribute) -> dict:
@@ -354,12 +435,51 @@ def json_to_cx(data: dict) -> CXFile:
     file.root_node = json_to_node(data["node"])
     return file
 
-# TODO: XML serialisation
+# region XML serialisation
+def parse_attributes(node: etree.Element) -> List[CXAttribute]:
+    res = []
+    for k, v in node.items():
+        cxattr = CXAttribute()
+        cxattr.name.value = decode_tagname(k)
+        cxattr.value.value = decode_tagname(v)
+        res.append(cxattr)
+    return res
+
+def parse_node(node: etree.Element, type: str="Node") -> CXNode:
+    cxnode = CXNode()
+    cxnode.line_number.value = node.sourceline
+    cxnode.type.value = type
+    cxnode.content.value = decode_tagname(node.tag)
+    cxnode.attributes = parse_attributes(node)
+    cxnode.children = [parse_node(child) for child in node.iterchildren()]
+    return cxnode
+
+def parse_root_node(node: str) -> CXNode:
+    # first, we need to find the attributes and replace dots in tag names
+    node = encode_tagname(node)
+    root = etree.fromstring(node)
+    root_cx = CXNode()
+    root_cx.line_number.value = 0
+    root_cx.type.value = "Root (Virtual)"
+    root_cx.content.value = ""
+    root_cx.attributes = []
+    root_cx.children = [parse_node(root)]
+    return root_cx
+
+def xml_to_cx(xml: str, original_path: str=None, header_text: str="", build_number: int=123, cx_version: int=3) -> CXFile:
+    file = CXFile()
+    file.header.build_number.value = build_number
+    file.header.cx_version.value = cx_version
+    file.header.original_file_path.value = original_path if original_path is not None else "unknown"
+    file.header.header_text.value = header_text
+    file.header.serialisable_resource_header.generate_from(xml)
+    file.root_node = parse_root_node(xml)
+    return file
 
 # region Main
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse, serialise, and deserialise Tea for God .cx files")
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     deserialise_parser = subparsers.add_parser('deserialise', help='Deserialise a cx file')
     deserialise_parser.add_argument("file", type=str, help="path to the .cx file")
@@ -370,8 +490,10 @@ if __name__ == "__main__":
     serialise_parser.add_argument("file", type=str, help="path to input to serialise")
     serialise_parser.add_argument("-j", "--json", action="store_true", help="input as JSON")
     serialise_parser.add_argument("-o", "--output", type=str, help="path to the output file (default: original filename with cx extension)")
-    serialise_parser.add_argument("--build-number", type=int, default=123, help="build number to use in the header (default: 123)")
-    serialise_parser.add_argument("--cx-version", type=int, default=3, help="cx version to use in the header (default: 3)")
+    serialise_parser.add_argument('-H', '--header-text', type=str, default="", help="header text to use (only supported with XML, default: '')")
+    serialise_parser.add_argument("--original-path", type=str, help="override original path to use in the header (only supported with XML, default: passed path to input)")
+    serialise_parser.add_argument("--build-number", type=int, default=123, help="build number to use in the header (only supported with XML, default: 123)")
+    serialise_parser.add_argument("--cx-version", type=int, default=3, help="cx version to use in the header (only supported with XML, default: 3)")
 
     args = parser.parse_args()
 
@@ -388,9 +510,14 @@ if __name__ == "__main__":
                 json.dump(cx_to_json(read_cx_path(args.file)), f, indent=4)
     elif args.command == 'serialise':
         if args.output is None:
-            args.output = args.file[:args.file.find(".")] + ".cx"
+            args.output = args.file[:args.file.find(".xml" if not args.json else ".json")] + ".cx.new"
+        if args.original_path is None:
+            args.original_path = args.file
+        args.original_path = strip_leading_to_gamedir(args.original_path)
         if not args.json:
-            raise NotImplementedError("XML serialisation is not yet supported")
+            with open(args.file, "r") as f:
+                with open(args.output, "wb") as out:
+                    out.write(xml_to_cx(f.read(), original_path=args.original_path, header_text=args.header_text, build_number=args.build_number, cx_version=args.cx_version).serialise())
         else:
             with open(args.file, "r") as f:
                 with open(args.output, "wb") as out:
