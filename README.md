@@ -35,6 +35,19 @@ Building executables:
 3. The executables will be in the `resources` directory
 4. Follow the prebuilt installation instructions from step 3
 
+## Roadmap
+
+Short-term:
+
+- [ ] Add support for install-time scripts in mods, and warn the user if they are present
+- [ ] Create a GUI for the tools, possibly using [Dear PyGui](https://github.com/hoffstadt/DearPyGui)
+
+Long-term:
+
+- [ ] Add support for decoding other file formats, such as `.tex`
+- [ ] Add mod dependency support
+- [ ] Optimize mod size by using more complex binary diffing/patching algorithms
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
