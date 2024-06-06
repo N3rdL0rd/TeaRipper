@@ -11,10 +11,6 @@ Utilities for working with Tea for God assets, configuration files, and a moddin
 
 See [docs/usage.md](docs/usage.md) for detailed usage instructions, and [docs/modding.md](docs/modding.md) for information on mods.
 
-## Prerequisites
-
-- Python 3.8 or later
-
 ## Installation
 
 Prebuilt:
@@ -23,6 +19,8 @@ Prebuilt:
 2. Unzip the release to a directory of your choice
 3. Add it to your PATH if you want to run the tools from anywhere, or leave them running from the directory
 4. Run the tools as needed (`teacx`, `tearipper`)
+
+All below options require Python 3.8 or higher to be installed.
 
 From source:
 
