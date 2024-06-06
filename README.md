@@ -17,11 +17,25 @@ See [docs/usage.md](docs/usage.md) for detailed usage instructions, and [docs/mo
 
 ## Installation
 
+Prebuilt:
+
+1. Download the latest release for your platform from the [releases page](https://github.com/N3rdL0rd/TeaRipper/releases)
+2. Unzip the release to a directory of your choice
+3. Add it to your PATH if you want to run the tools from anywhere, or leave them running from the directory
+4. Run the tools as needed (`teacx`, `tearipper`)
+
 From source:
 
 1. Clone the repository
 2. Run `pip install -r requirements.txt` to install the required dependencies
-3. Run the tools as needed
+3. Run the tools as needed (`python teacx.py`, `python tearipper.py`)
+
+Building executables:
+
+1. Make sure you have `pyinstaller` installed (`pip install pyinstaller`)
+2. Run `build.bat` to build the executables
+3. The executables will be in the `resources` directory
+4. Follow the prebuilt installation instructions from step 3
 
 ## License
 
