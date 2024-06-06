@@ -1,85 +1,56 @@
-import os
-import shutil
 import argparse
-from teacx import parse_cx, cx_to_xml
-from formats.snd import do_snd
-from formats.image import do_img, check_image
-
-format_processors = {
-    'snd': {
-        'processor': do_snd,
-        'match': lambda file: file.endswith('.snd'),
-        'outputs': ['ogg', 'mp3', 'wav'],
-        'returns': 'bytes'
-    },
-    'cx': {
-        'processor': lambda data: cx_to_xml(parse_cx(data)),
-        'match': lambda file: file.endswith('.cx'),
-        'outputs': ['xml'],
-        'returns': 'str'
-    },
-    'image': {
-        'processor': do_img,
-        'match': check_image,
-        'outputs': ['tga', 'bmp'],
-        'returns': 'bytes'
-    }
-}
-supported_formats = set(ext for processor in format_processors.values() for ext in processor['outputs'])
-
-def process_file(root, file, do_cx=False, log_failed=False):
-    if file.split('.')[-1] in supported_formats:
-        return
-
-    filepath = os.path.join(root, file)
-    with open(filepath, 'rb') as f:
-        data = f.read()
-
-    for format, processor in format_processors.items():
-        if processor['match'](file):
-            output, new_file = processor['processor'](data)
-            if output:
-                with open(new_file, 'wb') as f2:
-                    f2.write(output)
-            return
-
-    if log_failed:
-        print('Error: Unknown format for:', filepath)
-
-def crawl_directory(path, do_cx=False):
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            process_file(root, file, do_cx)
-
-def dump(directory):
-    if not os.path.isdir(directory):
-        print(f'Error: {directory} is not a directory')
-        return
-    print(f'Dumping {directory}')
-    crawl_directory(directory)
-
-def decode(file):
-    if not os.path.isfile(file):
-        print(f'Error: {file} is not a file')
-        return
-    process_file(os.path.dirname(file), os.path.basename(file), True, True)
+from util.dump import dump, decode
+from util.mod import package, init, unpackage, play
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Extract and convert assets from Tea for God')
+    parser = argparse.ArgumentParser(description='Extract, decode, dump, and package modified files for Tea for God modding.')
     subparsers = parser.add_subparsers(dest='action', required=True)
 
-    dump_parser = subparsers.add_parser('dump', help='Decode all supported files in a game directory recursively')
-    dump_parser.add_argument('directory', type=str, help='Directory to dump')
-    dump_parser.set_defaults(func=dump)
+    dump_parser = subparsers.add_parser('dump', help='dump all encoded files from a game directory recursively')
+    dump_parser.add_argument('directory', help='directory to dump files from')
+    dump_parser.add_argument('--output', help='output directory to dump files to (default: passed directory, same folders and structure as input files)')
+    dump_parser.add_argument('--overwrite', action='store_true', help='overwrite existing files in output directory')
+    dump_parser.add_argument('-s', '--skip-existing', action='store_true', help='skip existing files in output directory')
+    dump_parser.add_argument('--reg-path', help='path to save teareg registry file for later packaging (default: passed directory/dump.teareg)')
+    dump_parser.add_argument('-j', '--use-json', action='store_true', help='use json for cx deserialization for better accuracy (default: xml)')
+    dump_parser.add_argument('-m', '--mod', action='store_true', help='create configuration files for a mod (default: none created, you can create them manually later with the init command)')    
 
-    decode_parser = subparsers.add_parser('decode', help='Decode a single file')
-    decode_parser.add_argument('file', type=str, help='File to decode')
-    decode_parser.set_defaults(func=decode)
+    decode_parser = subparsers.add_parser('decode', help='decode a single file')
+    decode_parser.add_argument('file', help='file to decode')
+    decode_parser.add_argument('-j', '--use-json', action='store_true', help='use json for cx deserialization for better accuracy (default: xml)')
+
+    package_parser = subparsers.add_parser('package', help='package a dumped directory into a mod file')
+    package_parser.add_argument('directory', help='directory to package')
+    package_parser.add_argument('--reg-path', help='path to teareg registry file to use for packaging (default: passed directory/dump.teareg)')
+    package_parser.add_argument('--config', help='configuration file to use for packaging (default: passed directory/<config name>.mod.json)')
+    package_parser.add_argument('--output', help='output file to package to (default: <config name>.teamod)')
+    package_parser.add_argument('--pause-before-zip', action='store_true', help='pause before zipping to allow for manual file changes')
+
+    init_parser = subparsers.add_parser('init', help='initialize a mod configuration file (interactive, cannot be used automatically!)')
+    init_parser.add_argument('directory', help='directory to initialize configuration file in')
+
+    unpackage_parser = subparsers.add_parser('unpackage', help='unpackage a mod file into a directory')
+    unpackage_parser.add_argument('file', help='file to unpackage')
+    unpackage_parser.add_argument('output', help='output directory to unpackage to')
+
+    play_parser = subparsers.add_parser('play', help='launch the game with mods active')
+    play_parser.add_argument('directory', help='path to game files')
+    play_parser.add_argument('mods', help='path to directory containing mods to load')
 
     args = parser.parse_args()
+
     if args.action == 'dump':
-        dump(args.directory)
+        dump(args.directory, args.output, args.overwrite, args.skip_existing, args.reg_path, args.mod, args.use_json)
     elif args.action == 'decode':
-        decode(args.file)
+        decode(args.file, args.use_json)
+    elif args.action == 'package':
+        package(args.directory, args.reg_path, args.config, args.output, pause_before_zip=args.pause_before_zip)
+    elif args.action == 'init':
+        init(args.directory)
+    elif args.action == 'unpackage':
+        unpackage(args.file, args.output, interactive_warning=True)
+    elif args.action == 'play':
+        play(args.directory, args.mods)
     else:
         parser.print_help()
+        exit(1)

@@ -348,6 +348,9 @@ def strip_leading_to_gamedir(path: str) -> str:
     # - for compatibility's sake, also replace the last slash with a backslash (like what's generated from the game)    
     return replace_last(path.removeprefix("./").removeprefix("../").removeprefix("latest/").removeprefix("latest").replace("\\", "/"), "/", "\\")
 
+def format_leading_to_gamedir(path: str) -> str:
+    return path.removeprefix("./").removeprefix("../").removeprefix("latest/").removeprefix("latest").replace("\\", "/")
+
 # region JSON deserialisation
 def attr_to_json(attr: CXAttribute) -> dict:
     return {
