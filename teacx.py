@@ -191,7 +191,6 @@ class CXNode(CXSerialisable):
         return self
 
     def serialise(self) -> bytes:
-        print(self.attributes)
         self.attribute_count.value = len(self.attributes)
         self.child_count.value = len(self.children)
         return b"".join([
