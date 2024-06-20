@@ -11,7 +11,7 @@ import io
 import os
 from lxml import etree
 from typing import List
-from common import Serialisable, RawData, SerialisableResourceHeader
+from common import *
 
 # region Classes
 class CXSerialisable(Serialisable):
@@ -21,80 +21,10 @@ class CXSerialisable(Serialisable):
     def deserialise(self, f) -> 'CXSerialisable':
         raise NotImplementedError("deserialise is not implemented for this class.")
 
-class CXInt(CXSerialisable):
-    def __init__(self):
-        self.value = -1
-        self.length = 4
-        self.byteorder = "little"
-        self.signed = False
-    
-    def deserialise(self, f, length=4, byteorder="little", signed=False) -> 'CXInt':
-        self.length = length
-        self.byteorder = byteorder
-        self.signed = signed
-        bytes = f.read(length)
-        if all(b == 0 for b in bytes):
-            self.value = 0
-            return self
-        while bytes[-1] == 0:
-            bytes = bytes[:-1]
-        self.value = int.from_bytes(bytes, byteorder, signed=signed)
-        return self
-    
-    def serialise(self) -> bytes:
-        return self.value.to_bytes(self.length, self.byteorder, signed=self.signed)
-
-
-class CXBool(CXSerialisable):
-    def __init__(self):
-        self.value = False
-        self.length = 1
-        self.cxint = CXInt()
-        self.cxint.length = 1
-        self.cxint.signed = False
-    
-    def deserialise(self, f, length=1) -> 'CXBool':
-        self.length = length
-        self.cxint.deserialise(f, length=length, signed=False)
-        self.value = self.cxint.value == 1
-        return self
-    
-    def serialise(self) -> bytes:
-        self.cxint.value = 1 if self.value else 0
-        return self.cxint.serialise()
-    
-class CXString(CXSerialisable):
-    def __init__(self):
-        self.value = ""
-        self.is_8_bit = CXBool()
-        self.is_8_bit.value = True # default to 8-bit
-        self.length = CXInt()
-    
-    def deserialise(self, f) -> 'CXString':
-        self.is_8_bit.deserialise(f)
-        self.length.deserialise(f)
-        if self.length.value == 0:
-            self.value = ""
-            return self
-        if self.is_8_bit.value:
-            self.value = f.read(self.length.value).decode("utf-8")
-        else:
-            raise NotImplementedError("Unicode strings are not supported yet")
-        return self
-
-    def serialise(self) -> bytes:
-        encoded = None
-        if self.is_8_bit.value:
-            encoded = self.value.encode("utf-8")
-        else:
-            raise NotImplementedError("Unicode strings are not supported yet")
-        self.length.value = len(encoded)
-        return b"".join([self.is_8_bit.serialise(), self.length.serialise(), encoded])
-
 class CXAttribute(CXSerialisable):
     def __init__(self):
-        self.name = CXString()
-        self.value = CXString()
+        self.name = SerialisableString()
+        self.value = SerialisableString()
     
     def deserialise(self, f) -> 'CXAttribute':
         self.name.deserialise(f)
@@ -128,7 +58,7 @@ class CXNodeType(CXSerialisable):
             3: "Root (Virtual)",
             4: "Commented-out Node"
         }
-        self.cxint = CXInt()
+        self.cxint = SerialisableInt()
         self.value = ""
 
     def deserialise(self, f) -> 'CXNodeType':
@@ -142,12 +72,12 @@ class CXNodeType(CXSerialisable):
 
 class CXNode(CXSerialisable):
     def __init__(self):
-        self.line_number = CXInt()
+        self.line_number = SerialisableInt()
         self.type = CXNodeType()
-        self.content = CXString()
-        self.attribute_count = CXInt()
+        self.content = SerialisableString()
+        self.attribute_count = SerialisableInt()
         self.attributes = []
-        self.child_count = CXInt()
+        self.child_count = SerialisableInt()
         self.children = []
     
     def deserialise(self, f) -> 'CXNode':
@@ -185,12 +115,12 @@ class CXNode(CXSerialisable):
 
 class CXHeader(CXSerialisable):
     def __init__(self):
-        self.cx_version = CXInt()
+        self.cx_version = SerialisableInt()
         self.cx_version.length = 2
         self.serialisable_resource_header = SerialisableResourceHeader()
-        self.original_file_path = CXString()
-        self.build_number = CXInt()
-        self.header_text = CXString()
+        self.original_file_path = SerialisableString()
+        self.build_number = SerialisableInt()
+        self.header_text = SerialisableString()
     
     def deserialise(self, f) -> 'CXHeader':
         self.cx_version.deserialise(f, length=2)

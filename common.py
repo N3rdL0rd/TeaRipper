@@ -82,14 +82,55 @@ class SerialisableFile(Serialisable):
     def serialise(self) -> bytes:
         return b"".join([self.header.serialise(), self.data])
     
+class SerialisableInt(Serialisable):
+    def __init__(self):
+        self.value = -1
+        self.length = 4
+        self.byteorder = "little"
+        self.signed = False
+    
+    def deserialise(self, f, length=4, byteorder="little", signed=False) -> 'SerialisableInt':
+        self.length = length
+        self.byteorder = byteorder
+        self.signed = signed
+        bytes = f.read(length)
+        if all(b == 0 for b in bytes):
+            self.value = 0
+            return self
+        while bytes[-1] == 0:
+            bytes = bytes[:-1]
+        self.value = int.from_bytes(bytes, byteorder, signed=signed)
+        return self
+    
+    def serialise(self) -> bytes:
+        return self.value.to_bytes(self.length, self.byteorder, signed=self.signed)
+
+class SerialisableBool(Serialisable):
+    def __init__(self):
+        self.value = False
+        self.length = 1
+        self.cxint = SerialisableInt()
+        self.cxint.length = 1
+        self.cxint.signed = False
+    
+    def deserialise(self, f, length=1) -> 'SerialisableBool':
+        self.length = length
+        self.cxint.deserialise(f, length=length, signed=False)
+        self.value = self.cxint.value == 1
+        return self
+    
+    def serialise(self) -> bytes:
+        self.cxint.value = 1 if self.value else 0
+        return self.cxint.serialise()
+
 class SerialisableString(Serialisable):
     def __init__(self):
         self.value = ""
-        self.is_8_bit = CXBool()
+        self.is_8_bit = SerialisableBool()
         self.is_8_bit.value = True # default to 8-bit
-        self.length = CXInt()
+        self.length = SerialisableInt()
     
-    def deserialise(self, f) -> 'CXString':
+    def deserialise(self, f) -> 'SerialisableString':
         self.is_8_bit.deserialise(f)
         self.length.deserialise(f)
         if self.length.value == 0:
