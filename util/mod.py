@@ -51,10 +51,10 @@ def package(directory: str, reg_path=None, config_path=None, output_path=None, p
                     print(f'Reserialising {root}/{file}')
                     for file2 in files:
                         if file2 == file.replace('.cx', '.xml'):
-                            cxfile = xml_to_cx(os.path.join(root, file2))
+                            cxfile = xml_to_cx(open(os.path.join(root, file2)).read())
                             break
                         if file2 == file.replace('.cx', '.json'):
-                            cxfile = json_to_cx(os.path.join(root, file2))
+                            cxfile = json_to_cx(json.load(open(os.path.join(root, file2), 'r')))
                             break
                     try:
                         cxfile
@@ -99,13 +99,17 @@ def package(directory: str, reg_path=None, config_path=None, output_path=None, p
     final_reg = {}
     ignored = ["/dump.teareg", "/packed.teareg"]
     for file in old_reg:
-        if file in new or file in modified and file not in ignored and not "mod.json" in file:
-            final_reg[file] = old_reg[file]
-    for file in (new + modified):
         if file in ignored:
             continue
-        real_file = os.path.join(directory, file[1:] if file.startswith('/') else file)
-        final_reg[file] = hash(real_file)
+        real_file = os.path.join(directory, file) if not file.startswith(directory) else file
+        hashed = hash(real_file)
+        if old_reg[file] != hashed:
+            final_reg[file] = hashed
+            modified.append(file)
+    for file in new_reg:
+        if file not in old_reg:
+            final_reg[file] = new_reg[file]
+    print(new, modified)
     with open("packed.teareg", 'w') as f:
         json.dump(final_reg, f)
     if output_path is None:
@@ -119,12 +123,14 @@ def package(directory: str, reg_path=None, config_path=None, output_path=None, p
             file = file[1:]
         if "dump.teareg" in file or "mod.json" in file: # why is this necessary?
             continue
+        real_file = os.path.join(directory, file) if not file.startswith(directory) else file # can cause issues with edge cases, but who cares - nobody's going to name their files "library" or "system"
+        new_file = file.split('/', 1)[1] if '/' in file else file
+        #print(directory, file, real_file)
         if orig_file not in new_reg:
-            new_reg[orig_file] = hash(os.path.join(directory, file))
-        real_file = os.path.join(directory, file)
+            new_reg[orig_file] = hash(real_file)        
         print(f'Copying {real_file} to {temp_dir}')
-        os.makedirs(os.path.join(temp_dir, os.path.dirname(file)), exist_ok=True)
-        shutil.copy(real_file, os.path.join(temp_dir, file))
+        os.makedirs(os.path.join(temp_dir, os.path.dirname(new_file)), exist_ok=True)
+        shutil.copy(real_file, temp_dir + '/' + new_file)
     print("Copying mod metadata...")
     shutil.copy("packed.teareg", os.path.join(temp_dir, "packed.teareg"))
     shutil.copy(config_path, os.path.join(temp_dir, "mod.json"))
