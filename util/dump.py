@@ -3,6 +3,7 @@ import os
 from typing import Tuple
 import traceback
 from teacx import read_cx, cx_to_xml, cx_to_json, format_leading_to_gamedir
+from teasnd import SndFile
 import hashlib
 import json
 from util.mod import init
@@ -28,9 +29,10 @@ def process_snd_file(f) -> Tuple[bytes, str]:
     if len(data) > ARBITRARY_LIMIT:
         return data, 'wav'
     return None, None
-    
 
 def process_other_file(f, path, use_json=False) -> Tuple[bytes, str]:
+    if path.endswith('.snd'):
+        file = SndFile().deserialise(f)
     if path.endswith('.cx'):
         f.seek(0)
         file = read_cx(f)
@@ -63,14 +65,14 @@ def process_file(root, file, log_failed=False, use_json=False) -> Tuple[bytes, s
             return None, None
         filepath = os.path.join(root, file)
         filepath_noext = os.path.splitext(filepath)[0]
-        if filepath.endswith('.snd'):
-            with open(filepath, 'rb') as f:
-                data, ext = process_snd_file(f)
-                if data is not None:
-                    return data, filepath_noext + '.' + ext
-                else:
-                    warn(f'{filepath}: could not process sound file')
-                    return None, None
+        # if filepath.endswith('.snd'):
+        #     with open(filepath, 'rb') as f:
+        #         data, ext = process_snd_file(f)
+        #         if data is not None:
+        #             return data, filepath_noext + '.' + ext
+        #         else:
+        #             warn(f'{filepath}: could not process sound file')
+        #             return None, None
         with open(filepath, 'rb') as f:
             data, ext = process_other_file(f, filepath, use_json=use_json)
             if data is not None:

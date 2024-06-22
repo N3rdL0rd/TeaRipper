@@ -1,3 +1,6 @@
+import struct
+from typing import Dict
+
 class Serialisable:
     def __init__(self):
         raise NotImplementedError("Serialisable is an abstract class and should not be instantiated.")
@@ -63,11 +66,20 @@ class SerialisableResourceHeader(Serialisable):
             index = (index + 1) % c_length
             read_already += 1
         return bytes(value)
+    
+    def as_dict(self) -> Dict[str, str]:
+        return {
+            "digested_source": self.digested_source.data.hex(),
+            "digested_definition": self.digested_definition.data.hex()
+        }
 
     def generate_from(self, data: str) -> 'SerialisableResourceHeader':
         self.digested_source.data = self.digest(data)
         self.digested_definition.data = b"\x00" * 16 # TODO: figure out how to generate this. for now, 0x00 it is.
         return self
+    
+    def __str__(self) -> str:
+        return f"SerialisableResourceHeader(digested_source={self.digested_source.data}, digested_definition={self.digested_definition.data})"
     
 class SerialisableFile(Serialisable):
     def __init__(self):
@@ -104,6 +116,25 @@ class SerialisableInt(Serialisable):
     
     def serialise(self) -> bytes:
         return self.value.to_bytes(self.length, self.byteorder, signed=self.signed)
+
+class SerialisableFloat32(Serialisable):
+    def __init__(self):
+        self._length_DO_NOT_CHANGE = 4
+        self.sign_bit = None
+        self.exponent_byte = None
+        self.significand_bytes = None
+        self.value = None
+    
+    def deserialise(self, f) -> 'SerialisableFloat32':
+        bytes = f.read(self._length_DO_NOT_CHANGE)
+        # if all(b == 0 for b in bytes):
+        #     self.value = 0.0
+        #     return self
+        self.sign_bit = bytes[0] >> 7
+        self.exponent_byte = bytes[0] & 0x7F
+        self.significand_bytes = bytes[1:]
+        self.value = struct.unpack("<f", bytes)[0]
+        return self
 
 class SerialisableBool(Serialisable):
     def __init__(self):
