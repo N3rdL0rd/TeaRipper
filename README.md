@@ -54,7 +54,6 @@ Short-term:
 
 Long-term:
 
-- [ ] Add support for decoding other file formats, such as `.tex`
 - [ ] Add mod dependency support
 - [ ] Optimize mod size by using more complex binary diffing/patching algorithms
 
