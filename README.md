@@ -36,8 +36,14 @@ Building executables:
 
 1. Make sure you have `pyinstaller` installed (`pip install pyinstaller`)
 2. Run `build.bat` to build the executables
-3. The executables will be in the `resources` directory
+3. The executables will be in the `dist` directory
 4. Follow the prebuilt installation instructions from step 3
+
+Packaging for release:
+
+1. Make sure you have 7-Zip installed
+2. Run `package.bat` to package the executables into a `.zip` file
+3. The `.zip` file will be in the `dist` directory
 
 ## Roadmap
 

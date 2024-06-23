@@ -72,6 +72,11 @@ class SerialisableResourceHeader(Serialisable):
             "digested_source": self.digested_source.data.hex(),
             "digested_definition": self.digested_definition.data.hex()
         }
+    
+    def from_dict(self, data: Dict[str, str]) -> 'SerialisableResourceHeader':
+        self.digested_source.data = bytes.fromhex(data["digested_source"])
+        self.digested_definition.data = bytes.fromhex(data["digested_definition"])
+        return self
 
     def generate_from(self, data: str) -> 'SerialisableResourceHeader':
         self.digested_source.data = self.digest(data)
@@ -135,6 +140,9 @@ class SerialisableFloat32(Serialisable):
         self.significand_bytes = bytes[1:]
         self.value = struct.unpack("<f", bytes)[0]
         return self
+
+    def serialise(self) -> bytes:
+        return struct.pack("<f", self.value)
 
 class SerialisableBool(Serialisable):
     def __init__(self):
