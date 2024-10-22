@@ -17,6 +17,9 @@ class SoundData(RawData):
             self.format = "MP3"
         elif self.data.startswith(b'Info') or data.startswith(b'RIFF'):
             self.format = "WAV"
+        else:
+            print("Unknown sound format!")
+            self.format = "UNKNOWN!"
         return self
     
     def __str__(self) -> str:
