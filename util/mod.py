@@ -207,9 +207,9 @@ def play(directory: str, mods: str):
     os.chdir(directory)
     print(f"Currently in {os.getcwd()}")
     if os.path.exists("tfg.exe"):
-        subprocess.run("tfg.exe", stdout=subprocess.STDOUT)
+        subprocess.run("tfg.exe")
     elif os.path.exists("tea.exe"):
-        subprocess.run("tea.exe", stdout=subprocess.STDOUT)
+        subprocess.run("tea.exe")
     else:
         print("Couldn't find main executable!")
     os.chdir(old_dir)
