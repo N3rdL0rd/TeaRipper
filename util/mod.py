@@ -205,7 +205,7 @@ def play(directory: str, mods: str):
     print("Starting Tea for God...")
     old_dir = os.getcwd()
     os.chdir(directory)
-    subprocess.run(["tfg.exe"], stdout=subprocess.STDOUT)
+    subprocess.run("tfg.exe", stdout=subprocess.STDOUT)
     os.chdir(old_dir)
     print("Reverting from backup...")
     revert_from_backup(backup_dir, directory)
