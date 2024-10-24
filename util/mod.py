@@ -205,7 +205,13 @@ def play(directory: str, mods: str):
     print("Starting Tea for God...")
     old_dir = os.getcwd()
     os.chdir(directory)
-    subprocess.run("tfg.exe", stdout=subprocess.STDOUT)
+    print(f"Currently in {os.getcwd()}")
+    if os.path.exists("tfg.exe"):
+        subprocess.run("tfg.exe", stdout=subprocess.STDOUT)
+    elif os.path.exists("tea.exe"):
+        subprocess.run("tea.exe", stdout=subprocess.STDOUT)
+    else:
+        print("Couldn't find main executable!")
     os.chdir(old_dir)
     print("Reverting from backup...")
     revert_from_backup(backup_dir, directory)
